@@ -1,0 +1,32 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>SignalR Simple Chat</title>
+    <style type="text/css">
+        .container {
+            background-color: #99CCFF;
+            border: thick solid #808080;
+            padding: 20px;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <script src="Scripts/extjs-base-debug.js"></script>
+
+    <script src="Scripts/jquery-1.6.4.min.js"></script>
+    <script src="Scripts/jquery.signalR-2.2.0.min.js"></script>
+    <script src="http://localhost:53852/signalr/hubs"></script>
+    <script src="Scripts/JsTestRunner.js"></script>
+    <script type="text/javascript">
+        var runner = Ext.create("Terrasoft.TestRunner.SignalR", {
+            baseUrl: "http://localhost:53852/signalr"
+        });
+
+        $(function () {
+            runner.init();
+        });
+    </script>
+</body>
+</html>
