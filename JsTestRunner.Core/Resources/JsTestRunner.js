@@ -1,4 +1,10 @@
-﻿Ext.define("JsTestRunner.BaseObject", {
+﻿var EventState = {
+    ERROR: 0,
+    SUCCESS: 1,
+    WARNING: 2
+}
+var Ext = window.Ext;
+Ext.define("JsTestRunner.BaseObject", {
     mixins: {
         observable: "Ext.util.Observable"
     },
@@ -31,41 +37,83 @@ Ext.define("JsTestRunner.TestRunner", {
                 testsuitestart: function (event, harness) {
                     var text = 'Test suite is starting: ' + harness.title;
                     this.console.log(text);
-                    this.fireEvent("harnessEvent", "testsuitestart", { text: text });
+                    this.harnessEvent("testsuitestart", text);
                 }.bind(this),
                 testsuiteend: function (event, harness) {
                     var text = 'Test suite is finishing: ' + harness.title;
                     this.console.log(text);
-                    this.fireEvent("harnessEvent", "testsuiteend", { text: text });
+                    this.harnessEvent("testsuiteend", text);
                 }.bind(this),
                 teststart: function (event, test) {
-                    console.log('Test case is starting: ' + test.url);
+                    var text = 'Test case is starting: ' + test.url;
+                    this.console.log(text);
+                    this.harnessEvent("teststart", text);
                 }.bind(this),
                 testupdate: function (event, test, result) {
-                    console.log('Test case [' + test.url + '] has been updated: ' + result.description + (result.annotation ? ', ' + result.annotation : ''))
+                    var text = 'Test case [' + test.url + '] has been updated: ' + result.description + (result.annotation ? ', ' + result.annotation : '');
+                    this.console.log(text);
+                    this.harnessEvent("testupdate", text);
                 }.bind(this),
                 testfailedwithexception: function (event, test) {
-                    console.log('Test case [' + test.url + '] has failed with exception: ' + test.failedException);
+                    var text = 'Test case [' + test.url + '] has failed with exception: ' + test.failedException;
+                    this.console.log(text);
+                    this.harnessEvent("testfailedwithexception", text, EventState.ERROR, { exception: test.failedException });
                 }.bind(this),
                 testfinalize: function (event, test) {
-                    console.log('Test case [' + test.url + '] has completed');
+                    var text = 'Test case [' + test.url + '] has completed';
+                    this.console.log(text);
+                    this.harnessEvent("testfinalize", text);
                 }.bind(this)
             }
         });
     },
-    runTest: function (name) {
-        var descriptorsToRun = [];
+    harnessEvent: function (event, message, state, payload) {
+        if (Ext.isEmpty(state)) {
+            state = EventState.SUCCESS;
+        }
+        var data = { text: message, state: state };
+        if (payload) {
+            data.payload = payload;
+        }
+        this.fireEvent("harnessEvent", event, data);
+    },
+    findMatchedUrls: function (items, name, result) {
         var me = this;
-        Ext.each(this.harness.descriptors, function (descriptors) {
-            Ext.each(descriptors.items, function (item) {
-                var id = item.id;
-                if (id.indexOf(name) > -1 && item.url) {
-                    var descriptor = me.harness.getScriptDescriptor(item.url);
-                    descriptorsToRun.push(descriptor);
-                }
-            });
+        Ext.each(items, function (item) {
+            var id = item.id;
+            if (id.indexOf(name) > -1 && item.url) {
+                result.push(item.url);
+            }
+            if (item.items && item.items.length > 0) {
+                me.findMatchedUrls(item.items, name, result);
+            }
         });
-        this.harness.launch(descriptorsToRun);
+    },
+    getListeners: function() {
+        return ["runTest", "reload"];
+    },
+    runTest: function (name) {
+        var urlsToRun = [];
+        var me = this;
+        this.findMatchedUrls(this.harness.descriptors, name, urlsToRun);
+        if (urlsToRun.length > 0) {
+            this.log(Ext.String.format("{1} tests for {0} found", name, urlsToRun.length));
+            var descriptorsToRun = [];
+            Ext.each(urlsToRun, function(url) {
+                var descriptor = me.harness.getScriptDescriptor(url);
+                descriptorsToRun.push(descriptor);
+            });
+            this.harness.launch(descriptorsToRun);
+        } else {
+            this.log(Ext.String.format("No tests for {0} found", name));
+        }
+    },
+    reload: function (forceGet) {
+        this.fireEvent("log", "Page reload called.");
+        window.location.reload(forceGet);
+    },
+    log: function(msg) {
+        this.fireEvent("log", msg);
     }
 });
 
@@ -88,18 +136,69 @@ Ext.define("JsTestRunner.Client.SignalR", {
         this.initHubs();
         this.initMessages();
         this.initConnection().done(this.onConnected.bind(this));
+        setInterval(this.checkConnection.bind(this), 1000);
+    },
+    checkConnectionFlag: true,
+    checkConnection: function () {
+        if (!this.checkConnectionFlag) {
+            return;
+        }
+        var me = this;
+        if (this.testRunnerBroker.connection.state === $.signalR.connectionState.disconnected) {
+            this.checkConnectionFlag = false;
+            var enableConnectionCheck = function() {
+                me.checkConnectionFlag = true;
+            }
+            this.testRunnerBroker.connection.start().then(enableConnectionCheck, enableConnectionCheck);
+        }
     },
     initMessages: function () {
-        this.testRunnerBroker.client.runTest = function (name) {
-            this.runner.runTest(name);
-        }.bind(this);
+        var listeners = this.runner.getListeners();
+        var runner = this.runner;
+        var broker = this.testRunnerBroker;
+        var me = this;
+        Ext.each(listeners, function(listener) {
+            broker.client[listener] = function() {
+                var args = arguments;
+                try {
+                    runner[listener].apply(runner, args);
+                } catch (e) {
+                    me.logError(e.message, e.stack);
+                }
+            };
+        });
     },
     onConnected: function () {
-        this.testRunnerBroker.server.joinGroup("testRunners");
+        var bi = this.getBrowserInfo();
+        this.testRunnerBroker.server.joinAsRunner(bi);
         this.runner.on("harnessEvent", this.onHarnessEvent, this);
+        this.runner.on("log", this.log, this);
+    },
+    getBrowserInfo: function() {
+        var ua = navigator.userAgent, tem, matchArray = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
+        if (/trident/i.test(matchArray[1])) {
+            tem = /\brv[ :]+(\d+)/g.exec(ua) || [];
+            return { name: 'IE ', version: (tem[1] || '') };
+        }
+        if (matchArray[1] === 'Chrome') {
+            tem = ua.match(/\bOPR\/(\d+)/)
+            if (tem != null) { return { name: 'Opera', version: tem[1] }; }
+        }
+        matchArray = matchArray[2] ? [matchArray[1], matchArray[2]] : [navigator.appName, navigator.appVersion, '-?'];
+        if ((tem = ua.match(/version\/(\d+)/i)) != null) { matchArray.splice(1, 1, tem[1]); }
+        return {
+            name: matchArray[0],
+            version: matchArray[1]
+        };
     },
     onHarnessEvent: function (eventName, config) {
         this.testRunnerBroker.server.onHarnessEvent(eventName, config);
+    },
+    log: function (msg) {
+        this.testRunnerBroker.server.log(msg);
+    },
+    logError: function(message, stack) {
+        this.testRunnerBroker.server.logError(message, stack);
     }
 
 });
