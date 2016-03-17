@@ -13,28 +13,21 @@ namespace JsTestRunner.Client.Core
 {
 	public enum LoggingLevel
 	{
-		Min = -1,
-		Default = 0,
-		Verbose = 1,
+		Min = 1,
 		Full = 2
 	}
 
     public class Client {
 	    readonly string _url;
 	    private IHubProxy<ITestRunnerBroker, ITestRunnerClientContract> _hubProxy;
-	    private readonly Action<string> _logger;
-		private readonly Dictionary<LoggingLevel, List<string>> _loggingLevelMap; 
-		private LoggingLevel _currentLoggingLevel = LoggingLevel.Default;
+	    private readonly Action<string, bool?> _logger;
+		private readonly Dictionary<LoggingLevel, List<string>> _loggingLevelMap;
+	    public LoggingLevel CurrentLoggingLevel { get; }
 
-        public Client(string ulr, Action<string> logger) {
+	    public Client(string ulr, Action<string, bool?> logger) {
 		    _url = ulr;
 	        _logger = logger;
-			_loggingLevelMap = new Dictionary<LoggingLevel, List<string>> {
-				{LoggingLevel.Min, new List<string> { "testsuitestart", "testsuiteend" } }, 
-				{LoggingLevel.Default, new List<string> { "testsuitestart", "testsuiteend", "testfailedwithexception" } },
-				{LoggingLevel.Verbose, new List<string> { "testsuitestart", "testsuiteend", "testfailedwithexception", "teststart", "testfinalize" } },
-				{LoggingLevel.Full, new List<string> { "testsuitestart", "testsuiteend", "testfailedwithexception", "teststart", "testfinalize", "testupdate" } }
-			};
+		    CurrentLoggingLevel = LoggingLevel.Min;
         }
 
 	    public void Init() {
@@ -47,31 +40,38 @@ namespace JsTestRunner.Client.Core
 	    }
 
 	    private void InitSubscriptions() {
-			_hubProxy.SubscribeOn<string, string, string>(h=>h.TestEvent, (runner, eventName, text) => {
-				if (!CheckLogTestEvent(eventName)) {
+			_hubProxy.SubscribeOn<string, string, int, string, JObject>(h=>h.TestEvent, (runner, eventName, state, text, payload) => {
+				if (!CheckLogTestEvent(eventName, state)) {
 					return;
 				}
-				_logger(string.Format("Runner: {2}{1}Event: {0}", eventName, Environment.NewLine, runner));
+				bool? stateRes = null;
+				if (state != 2) {
+					stateRes = state == 1;
+				}
+                _logger(string.Format("Runner: {2}{1}Event: {0}", eventName, Environment.NewLine, runner), stateRes);
 				if (text != null) {
-					_logger(text);
+					_logger(text, stateRes);
 				}
 			});
 			_hubProxy.SubscribeOn<string,string>(h=>h.AppendLog, (runner, log) => {
-				_logger(string.Format("Runner: {2}{1}{0}", log, Environment.NewLine, runner));
+				_logger(string.Format("Runner: {2}{1}{0}", log, Environment.NewLine, runner), null);
 			});
 	    }
 
-	    private bool CheckLogTestEvent(string name) {
-		    var currentLoggingEvents = _loggingLevelMap[_currentLoggingLevel];
-		    return currentLoggingEvents.Contains(name, StringComparer.OrdinalIgnoreCase);
+	    private bool CheckLogTestEvent(string name, int state) {
+		    return true;
 	    }
 
-	    public void RunTest(string name, LoggingLevel level = LoggingLevel.Default) {
+	    public void RunTest(string name) {
 		    _hubProxy.Call(broker => broker.RunTest(name));
 	    }
 
 	    public void ReloadPage() {
 			_hubProxy.Call(broker => broker.ReloadPage(true));
 	    }
-    }
+
+	    public void Ping() {
+		    _hubProxy.Call(h => h.Ping());
+	    }
+	}
 }

@@ -13,5 +13,6 @@ namespace JsTestRunner.Core.Interfaces
 		void OnHarnessEvent(string eventName, JObject config);
 		void ReloadPage(bool forceGet);
 		void RunTest(string name);
+		void Ping();
 	}
 }

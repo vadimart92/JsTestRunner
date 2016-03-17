@@ -43,7 +43,7 @@ namespace JsTestRunner.Core
 			});
 	    }
 		public static string GetBasePath() {
-			return AppDomain.CurrentDomain.SetupInformation.PrivateBinPath;
+			return AppDomain.CurrentDomain.SetupInformation.PrivateBinPath ?? Environment.CurrentDirectory;
 		}
 	}
 }

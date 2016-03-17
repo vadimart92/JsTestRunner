@@ -21,16 +21,22 @@ namespace JsTestRunner.Core
 		
 		public override Task OnDisconnected(bool stopCalled) {
 			if (_testRunners.ContainsKey(Context.ConnectionId)) {
+				RunnerClients.AppendLog(RunnerInfo, "Runner disconected. " + RunnersCountMs);
 				Groups.Remove(Context.ConnectionId, TestRunnersGroupName);
 				BrowserInfo val;
 				_testRunners.TryRemove(Context.ConnectionId, out val);
+				
 			}
 			return base.OnDisconnected(stopCalled);
 		}
 
+		private string RunnersCountMs {
+			get { return string.Format("Active runners: {0}", _testRunners.Count); }
+		}
+
 		public override Task OnReconnected() {
 			if (_testRunners.ContainsKey(Context.ConnectionId)) {
-				RunnerClients.AppendLog(RunnerInfo, "Runner reconected");
+				RunnerClients.AppendLog(RunnerInfo, "Runner reconected. " + RunnersCountMs);
 			}
 			return base.OnReconnected();
 		}
@@ -49,6 +55,7 @@ namespace JsTestRunner.Core
 
 		public Task JoinAsRunner(BrowserInfo info) {
 			_testRunners[Context.ConnectionId] = info;
+			RunnerClients.AppendLog(RunnerInfo, "Runner conected. " + RunnersCountMs);
 			return Groups.Add(Context.ConnectionId, TestRunnersGroupName);
 		}
 		
@@ -70,11 +77,16 @@ namespace JsTestRunner.Core
 		}
 
 		public void OnHarnessEvent(string eventName, JObject config) {
-			RunnerClients.TestEvent(RunnerInfo, eventName, config.Value<string>("text"));
+			RunnerClients.TestEvent(RunnerInfo, eventName, config.Value<int>("state"), config.Value<string>("text"), config.Value<JObject>("payload"));
 		}
 
 		public void RunTest(string name) {
 			Runners.RunTest(name);
+		}
+
+		public void Ping() {
+			Clients.Caller.AppendLog("Ping accepted. ",  RunnersCountMs);
+			Runners.Ping();
 		}
 
 		public void ReloadPage(bool forceGet) {

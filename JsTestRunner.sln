@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JsTestRunner.Client.Console
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JsTestRunner.Core.Interfaces", "JsTestRunner.Core.Interfaces\JsTestRunner.Core.Interfaces.csproj", "{5284334E-8503-4216-AC75-27FCEF06A585}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestAll", "TestAll\TestAll.csproj", "{52A292E1-4795-4B6C-8C7D-94CEE6363FE8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +53,10 @@ Global
 		{5284334E-8503-4216-AC75-27FCEF06A585}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5284334E-8503-4216-AC75-27FCEF06A585}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5284334E-8503-4216-AC75-27FCEF06A585}.Release|Any CPU.Build.0 = Release|Any CPU
+		{52A292E1-4795-4B6C-8C7D-94CEE6363FE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{52A292E1-4795-4B6C-8C7D-94CEE6363FE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{52A292E1-4795-4B6C-8C7D-94CEE6363FE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{52A292E1-4795-4B6C-8C7D-94CEE6363FE8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,7 +1,8 @@
-﻿var EventState = {
+﻿var Level = {
     ERROR: 0,
     SUCCESS: 1,
-    WARNING: 2
+    INFO: 2,
+    WARNING: 3
 }
 var Ext = window.Ext;
 Ext.define("JsTestRunner.BaseObject", {
@@ -52,12 +53,13 @@ Ext.define("JsTestRunner.TestRunner", {
                 testupdate: function (event, test, result) {
                     var text = 'Test case [' + test.url + '] has been updated: ' + result.description + (result.annotation ? ', ' + result.annotation : '');
                     this.console.log(text);
-                    this.harnessEvent("testupdate", text);
+                    var state = result.passed === false ? Level.ERROR : Level.SUCCESS;
+                    this.harnessEvent("assert", text, state, Ext.apply(result, { url: test.url }));
                 }.bind(this),
                 testfailedwithexception: function (event, test) {
                     var text = 'Test case [' + test.url + '] has failed with exception: ' + test.failedException;
                     this.console.log(text);
-                    this.harnessEvent("testfailedwithexception", text, EventState.ERROR, { exception: test.failedException });
+                    this.harnessEvent("testfailedwithexception", text, Level.ERROR, { exception: test.failedException });
                 }.bind(this),
                 testfinalize: function (event, test) {
                     var text = 'Test case [' + test.url + '] has completed';
@@ -68,8 +70,8 @@ Ext.define("JsTestRunner.TestRunner", {
         });
     },
     harnessEvent: function (event, message, state, payload) {
-        if (Ext.isEmpty(state)) {
-            state = EventState.SUCCESS;
+        if (state === undefined) {
+            state = Level.INFO;
         }
         var data = { text: message, state: state };
         if (payload) {
@@ -90,7 +92,10 @@ Ext.define("JsTestRunner.TestRunner", {
         });
     },
     getListeners: function() {
-        return ["runTest", "reload"];
+        return ["runTest", "reload", "ping"];
+    },
+    ping: function() {
+        this.log("Pong");
     },
     runTest: function (name) {
         var urlsToRun = [];
