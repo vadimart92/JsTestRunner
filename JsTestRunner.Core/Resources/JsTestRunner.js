@@ -11,26 +11,48 @@ Ext.define("JsTestRunner.BaseObject", {
     },
     listeners: null,
     destroyed: false,
+	logEnabled: false,
     console: window.console,
     constructor: function (config) {
         var initialConfig = this.initialConfig = config || {};
         Ext.apply(this, initialConfig);
         this.callParent(arguments);
         this.mixins.observable.constructor.call(this);
+        var log = this.console.log.bind(this.console);
+        this.console.log = function () {
+        	if (this.logEnabled) {
+        		log(arguments);
+        	}
+        }.bind(this);
     }
 });
 Ext.define("JsTestRunner.TestRunner", {
     extend: "JsTestRunner.BaseObject",
     constructor: function () {
         this.callParent(arguments);
-        this.initHarness();
-        this.init();
+        this.initHarness().then(this.init.bind(this));
     },
     initHarness: function () {
+    	var defer = jQuery.Deferred();
         this.harness = window.Siesta.my.activeHarness;
-        if (!this.harness) {
-            throw new "Harness not found";
+        var me = this;
+        if (this.harness) {
+        	defer.resolve();
+        } else {
+        	window.console.log("Harness not found, going to sleep");
+        	var cleared = false;
+        	var int = setInterval(function () {
+        		me.harness = window.Siesta.my.activeHarness;
+        		if (me.harness) {
+        			window.clearInterval(int);
+        			if (!cleared) {
+						cleared = true;
+        				defer.resolve();
+        			}
+        		}
+        	}, 500);
         }
+        return defer;
     },
     init: function () {
         this.harness.configure({
@@ -51,13 +73,13 @@ Ext.define("JsTestRunner.TestRunner", {
                     this.harnessEvent("teststart", text);
                 }.bind(this),
                 testupdate: function (event, test, result) {
-                    var text = 'Test case [' + test.url + '] has been updated: ' + result.description + (result.annotation ? ', ' + result.annotation : '');
+                    var text = 'Test case [' + test.url + '] has been updated:\r\n' + result.description + (result.annotation ? ', ' + result.annotation : '');
                     this.console.log(text);
                     var state = result.passed === false ? Level.ERROR : Level.SUCCESS;
                     this.harnessEvent("assert", text, state, Ext.apply(result, { url: test.url }));
                 }.bind(this),
                 testfailedwithexception: function (event, test) {
-                    var text = 'Test case [' + test.url + '] has failed with exception: ' + test.failedException;
+                	var text = 'Test case [' + test.url + '] has failed with exception: \r\n' + test.failedException;
                     this.console.log(text);
                     this.harnessEvent("testfailedwithexception", text, Level.ERROR, { exception: test.failedException });
                 }.bind(this),
@@ -100,6 +122,10 @@ Ext.define("JsTestRunner.TestRunner", {
     runTest: function (name) {
         var urlsToRun = [];
         var me = this;
+        var match = /(.*)\.(\w*)\.js/.exec(name);
+        if (match && match[2]) {
+        	name = match[2];
+        }
         this.findMatchedUrls(this.harness.descriptors, name, urlsToRun);
         if (urlsToRun.length > 0) {
             this.log(Ext.String.format("{1} tests for {0} found", name, urlsToRun.length));
@@ -110,7 +136,8 @@ Ext.define("JsTestRunner.TestRunner", {
             });
             this.harness.launch(descriptorsToRun);
         } else {
-            this.log(Ext.String.format("No tests for {0} found", name));
+        	this.log(Ext.String.format("No tests for {0} found", name));
+        	this.harnessEvent("testsuiteend");
         }
     },
     reload: function (forceGet) {

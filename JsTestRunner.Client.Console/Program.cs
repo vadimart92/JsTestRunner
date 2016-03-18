@@ -11,8 +11,10 @@ namespace JsTestRunner.Client.Console
 	{
 		static void Main(string[] args) {
 			string url = null;
+			string testName = null;
 			var opts = new OptionSet {
-				{ "u|url=", "the {URL} to connect", v => url = v }
+				{ "u|url=", "the {URL} to connect", v => url = v },
+				{ "r|run=", "the name of {TEST} to run", v => testName = v }
 			};
 			opts.Parse(args);
 			if (string.IsNullOrWhiteSpace(url)) {
@@ -32,7 +34,10 @@ namespace JsTestRunner.Client.Console
 			client.Init();
 			System.Console.WriteLine("Initialized.");
 			bool cmdEmpty;
-			
+			if (!string.IsNullOrWhiteSpace(testName)) {
+				client.RunTest(testName).Wait();
+				return;
+			}
 			do {
 				var cmd = System.Console.ReadLine();
 				System.Console.Clear();

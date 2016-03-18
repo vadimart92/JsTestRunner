@@ -30,7 +30,9 @@ namespace JsTestRunner.Core
 		    appBuilder.MapSignalR(hubConfiguration);
 		    var resourceFileSystem = new PhysicalFileSystem(Path.Combine(GetBasePath(), "Resources"));
 #if DEBUG
-			resourceFileSystem = new PhysicalFileSystem(@"F:\DEV\CScharp\IISAdminOwin\WebSiteManagment\JsTestRunner\JsTestRunner.Core\Resources");
+			var homeDir = @"F:\DEV\CScharp\IISAdminOwin\WebSiteManagment\JsTestRunner\JsTestRunner.Core\Resources";
+			var workDir = @"C:\Projects\Git\JsTestRunner\JsTestRunner.Core\Resources";
+			resourceFileSystem = new PhysicalFileSystem(Directory.Exists(homeDir)?homeDir : workDir);
 #endif 
 			appBuilder.UseFileServer(new FileServerOptions() {
 				RequestPath = new PathString(@"/Resources"),
