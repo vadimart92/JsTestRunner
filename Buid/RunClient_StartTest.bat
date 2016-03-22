@@ -1,0 +1,1 @@
+bin\JsTestRunner.Client.Console --run=BaseModulePageV2_NUI_Tests.js
