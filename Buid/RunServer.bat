@@ -1,1 +1,2 @@
-bin\JsTestRunner.Server.exe -p=53853 -url=http://localhost:2376/WebApp780/0/TestTools/Tests.aspx?useCoreBundle=true&harness.enableCodeCoverage=true&harness.contentManagerClass=Terrasoft.Tests.ContentManager&harness.sandbox=false
+cd bin
+JsTestRunner.Server.exe -p=53853 -url="http://localhost:2376/WebApp780/0/TestTools/Tests.aspx?useCoreBundle=true&harness.enableCodeCoverage=true&harness.contentManagerClass=Terrasoft.Tests.ContentManager&harness.sandbox=false"
