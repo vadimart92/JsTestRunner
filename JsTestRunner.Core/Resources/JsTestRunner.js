@@ -68,28 +68,37 @@ Ext.define("JsTestRunner.TestRunner", {
                     this.harnessEvent("testsuiteend", text);
                 }.bind(this),
                 teststart: function (event, test) {
-                    var text = 'Test case is starting: ' + test.url;
+                    var text = 'Test case is starting: ' + this.getClassNameFromUrl(test.url);
                     this.console.log(text);
                     this.harnessEvent("teststart", text);
                 }.bind(this),
                 testupdate: function (event, test, result) {
-                    var text = 'Test case [' + test.url + '] has been updated:\r\n' + result.description + (result.annotation ? ', ' + result.annotation : '');
+                    var className = this.getClassNameFromUrl(test.url);
+                    var text = 'Test case [' + className  + '] has been updated:\r\n' + result.description + (result.annotation ? ', ' + result.annotation : '');
                     this.console.log(text);
                     var state = result.passed === false ? Level.ERROR : Level.SUCCESS;
-                    this.harnessEvent("assert", text, state, Ext.apply(result, { url: test.url }));
+                    this.harnessEvent("assert", text, state, Ext.apply(result, { url: className }));
                 }.bind(this),
                 testfailedwithexception: function (event, test) {
-                	var text = 'Test case [' + test.url + '] has failed with exception: \r\n' + test.failedException;
+                    var text = 'Test case [' + this.getClassNameFromUrl(test.url) + '] has failed with exception: \r\n' + test.failedException;
                     this.console.log(text);
                     this.harnessEvent("testfailedwithexception", text, Level.ERROR, { exception: test.failedException });
                 }.bind(this),
                 testfinalize: function (event, test) {
-                    var text = 'Test case [' + test.url + '] has completed';
+                    var text = 'Test case [' + this.getClassNameFromUrl(test.url) + '] has completed';
                     this.console.log(text);
                     this.harnessEvent("testfinalize", text);
                 }.bind(this)
             }
         });
+    },
+    classNameRe: /(.*)\/(\w*?).js(.*)/,
+    getClassNameFromUrl: function(url) {
+        var match = this.classNameRe.exec(url);
+        if (match && match[2]) {
+            return match[2];
+        }
+        return url;
     },
     harnessEvent: function (event, message, state, payload) {
         if (state === undefined) {
