@@ -1,0 +1,24 @@
+Index: Tests.aspx
+===================================================================
+--- Tests.aspx	(revision 89988)
++++ Tests.aspx	(working copy)
+@@ -37,6 +37,19 @@
+ 			background-image: url(resources/images/unchecked.gif);
+ 		}
+ 	</style>
++	     <script type="text/javascript" src="browse-all-desktop.js"></script>
++        <script src="http://localhost:53853/Resources/jquery.signalR-2.2.0.js"></script>
++        <script src="http://localhost:53853/signalr/hubs"></script>
++        <script src="http://localhost:53853/Resources/JsTestRunner.js"></script>
++        <script type="text/javascript">
++        	var runner = window.runner = Ext.create("JsTestRunner.Client.SignalR", {
++        		baseUrl: "http://localhost:53853/signalr"
++        	});
++
++        	$(function () {
++        		runner.init();
++        	});
++        </script>
+ </head>
+ <body>
+ </body>
