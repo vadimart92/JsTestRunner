@@ -111,10 +111,11 @@ Ext.define("JsTestRunner.TestRunner", {
         this.fireEvent("harnessEvent", event, data);
     },
     findMatchedUrls: function (items, name, result) {
-        var me = this;
+	    name = name.toLowerCase();
+    	var me = this;
         Ext.each(items, function (item) {
             var id = item.id;
-            if (id.indexOf(name) > -1 && item.url) {
+            if (id.toLowerCase().indexOf(name) > -1 && item.url) {
                 result.push(item.url);
             }
             if (item.items && item.items.length > 0) {
