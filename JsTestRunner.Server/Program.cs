@@ -1,12 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Owin.Hosting;
 using Microsoft.Win32;
 using NDesk.Options;
@@ -18,18 +13,18 @@ namespace JsTestRunner.Server
 		static string MyName {
 			get { return Path.GetFileNameWithoutExtension(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName); }
 		}
-		public static void Main(string[] args) {
-			RunnerOptions options = null;
 
+		public static void Main(string[] args) {
+			RunnerOptions options;
 			try {
 				options = RunnerOptions.Parse(args);
-			} catch (OptionException e) {
+			}
+			catch (OptionException e) {
 				Console.Write("{0}: ", MyName);
 				Console.WriteLine(e.Message);
 				Console.WriteLine("Try `{0} --help' for more information.", MyName);
 				return;
 			}
-
 			if (options.Help) {
 				ShowHelp(options.OptionSet);
 				return;
@@ -53,7 +48,8 @@ namespace JsTestRunner.Server
 			p.WriteOptionDescriptions(Console.Out);
 		}
 
-		class RunnerOptions {
+		class RunnerOptions
+		{
 			private string _browserPath;
 			private string _url;
 			public string Host { get; set; }
@@ -63,15 +59,15 @@ namespace JsTestRunner.Server
 			public string Browser { get; set; }
 
 			public string Url {
-				get {
-					return _url ?? string.Empty;
-				}
+				get { return _url ?? string.Empty; }
 				set { _url = value; }
 			}
 
 			public string BrowserPath {
 				get {
-					return _browserPath ?? Convert.ToString(Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe", string.Empty, string.Empty));
+					return _browserPath ?? Convert.ToString(
+						Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe",
+							string.Empty, string.Empty));
 				}
 				set { _browserPath = value; }
 			}
@@ -85,33 +81,36 @@ namespace JsTestRunner.Server
 				Port = -1;
 				Clients = 1;
 			}
-			
+
 			public static RunnerOptions Parse(string[] args) {
 				var options = new RunnerOptions();
 				var p = new OptionSet {
-					{ "h|host=", "the {host} for binding", v => options.Host = v },
-					{ "p|port=", "the {port} for binding", v => options.Port = int.Parse(v) },
-					{ "help=", "display {help}", v => options.Help = bool.Parse(v) },
-					{ "u|url=", "relative {url} to test page", v => options.Url = v },
-					{ "a|start=", "if {autostart} defined as true, the browser will be opened after server started", v => {
-						int val;
-						bool valBool;
-						if (int.TryParse(v, out val)) {
-							options.AutoStartClients = val > 0;
-						} else if (bool.TryParse(v, out valBool)) {
-							options.AutoStartClients = valBool;
+					{"h|host=", "the {host} for binding", v => options.Host = v},
+					{"p|port=", "the {port} for binding", v => options.Port = int.Parse(v)},
+					{"help=", "display {help}", v => options.Help = bool.Parse(v)},
+					{"u|url=", "relative {url} to test page", v => options.Url = v}, {
+						"a|start=", "if {autostart} defined as true, the browser will be opened after server started", v => {
+							int val;
+							bool valBool;
+							if (int.TryParse(v, out val)) {
+								options.AutoStartClients = val > 0;
+							}
+							else if (bool.TryParse(v, out valBool)) {
+								options.AutoStartClients = valBool;
+							}
+						}
+					},
+					{"c|clients=", "the count of {clients} to start.", v => options.Clients = int.Parse(v)},
+					{"b|browser=", "the {browser} to start.", v => options.Browser = v}, {
+						"path=", "the count of {clients} to start.", v => {
+							if (Directory.Exists(v)) {
+								options.BrowserPath = v;
+							}
+							else {
+								throw new DirectoryNotFoundException();
+							}
 						}
 					}
-					},
-					{ "c|clients=", "the count of {clients} to start.", v => options.Clients = int.Parse(v) },
-					{ "b|browser=", "the {browser} to start.", v => options.Browser = v },
-					{ "path=", "the count of {clients} to start.", v => {
-						if (Directory.Exists(v)) {
-							options.BrowserPath = v;
-						} else {
-							throw  new DirectoryNotFoundException();
-						}
-					} }
 				};
 				p.Parse(args);
 				if (!options.Help) {
@@ -125,15 +124,15 @@ namespace JsTestRunner.Server
 						Console.WriteLine("Port is {0}", options.Port);
 					}
 				}
-				
+
 				options.OptionSet = p;
-                return options;
+				return options;
 			}
 
 			private static int FreeTcpPort() {
 				TcpListener l = new TcpListener(IPAddress.Loopback, 0);
 				l.Start();
-				int port = ((IPEndPoint)l.LocalEndpoint).Port;
+				int port = ((IPEndPoint) l.LocalEndpoint).Port;
 				l.Stop();
 				return port;
 			}
