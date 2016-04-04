@@ -5,7 +5,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace TestAll
 {
 	[TestClass]
-	public class UnitTest1
+	public class ReplUnitTests
 	{
 		[TestMethod]
 		public void TestMethod0() {

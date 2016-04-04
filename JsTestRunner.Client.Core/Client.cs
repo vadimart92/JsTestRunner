@@ -21,16 +21,10 @@ namespace JsTestRunner.Client.Core
 	    readonly string _url;
 	    private IHubProxy<ITestRunnerBroker, ITestRunnerClientContract> _hubProxy;
 	    private readonly Action<string, bool?> _logger;
-		private readonly Dictionary<LoggingLevel, List<string>> _loggingLevelMap;
-		public LoggingLevel CurrentLoggingLevel {
-			get;
-			private set;
-		}
 
 	    public Client(string ulr, Action<string, bool?> logger) {
 		    _url = ulr;
 	        _logger = logger;
-		    CurrentLoggingLevel = LoggingLevel.Min;
         }
 
 	    public void Init() {
@@ -41,44 +35,46 @@ namespace JsTestRunner.Client.Core
 		    hubConnection.Start().Wait();
 		    _hubProxy.Call(h => h.JoinAsClient());
 	    }
-		volatile int RunState = -1;
+		
 	    private void InitSubscriptions() {
-			_hubProxy.SubscribeOn<string, string, int, string, JObject>(h=>h.TestEvent, (runner, eventName, state, text, payload) => {
-				if (!CheckLogTestEvent(eventName, state)) {
-					return;
-				}
-				bool? stateRes = null;
-				if (state != 2) {
-					stateRes = state == 1;
-				}
-				_logger(string.Format("Runner: {2}{1}Event: {0}", eventName, Environment.NewLine, runner), stateRes);
-				if (text != null) {
-					_logger(text, stateRes);
-				}
-				if (eventName == "testsuiteend") {
-					lock (this) {
-						RunState = 1;
-					}
-				}
-			});
-			_hubProxy.SubscribeOn<string,string>(h=>h.AppendLog, (runner, log) => {
+			_hubProxy.SubscribeOn<string, string, int, string, JObject>(h => h.TestEvent, OnTestEventAccepted);
+			_hubProxy.SubscribeOn<string, string>(h => h.AppendLog, (runner, log) => {
 				_logger(string.Format("Runner: {2}{1}{0}", log, Environment.NewLine, runner), null);
 			});
-	    }
+			_hubProxy.SubscribeOn<string, RunnerState>(h => h.SendRunnerState, (runnerInfo, state) => {
+				_lastRunnerState = state;
+				//todo: set state corectly
+			});
+		}
 
-	    private bool CheckLogTestEvent(string name, int state) {
-		    return true;
-	    }
+	    private volatile RunnerState _lastRunnerState = RunnerState.Waiting;
 
-	    public Task RunTest(string name) {
+		volatile int _runState = -1;
+		private void OnTestEventAccepted(string runner, string eventName, int state, string text, JObject payload) {
+			bool? stateRes = null;
+			if (state != 2) {
+				stateRes = (state == 1);
+			}
+			_logger(string.Format("Runner: {2}{1}Event: {0}", eventName, Environment.NewLine, runner), stateRes);
+			if (text != null) {
+				_logger(text, stateRes);
+			}
+			if (eventName == "testsuiteend") {
+				lock (this) {
+					_runState = 0;
+				}
+			}
+		}
+
+		public Task RunTest(string name) {
 			return Task.Run(() => {
 				lock (this) {
-					RunState = 0;
+					_runState = 1;
 				}
 				_hubProxy.Call(broker => broker.RunTest(name));
 				while (true) {
 					lock (this) {
-						if (RunState == 1) {
+						if (_runState == 0) {
 							return;
 						}
 					}

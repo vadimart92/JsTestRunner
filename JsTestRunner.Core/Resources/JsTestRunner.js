@@ -4,6 +4,12 @@
 	INFO: 2,
 	WARNING: 3
 }
+var State = {
+    READY: 1,
+    ERROR: -1,
+    WAITING: 2
+};
+
 var Ext = window.Ext;
 Ext.define("JsTestRunner.BaseObject", {
 	mixins: {
@@ -58,36 +64,29 @@ Ext.define("JsTestRunner.TestRunner", {
 		this.harness.configure({
 			listeners: {
 				testsuitestart: function (event, harness) {
-					var text = 'Test suite is starting: ' + harness.title;
-					this.console.log(text);
-					this.harnessEvent("testsuitestart", text);
+					this.harnessEvent("testsuitestart", null, harness.title);
 				}.bind(this),
 				testsuiteend: function (event, harness) {
-					var text = 'Test suite is finishing: ' + harness.title;
-					this.console.log(text);
-					this.harnessEvent("testsuiteend", text);
+				    this.harnessEvent("testsuiteend", null, harness.title);
 				}.bind(this),
 				teststart: function (event, test) {
-					var text = 'Test case is starting: ' + this.getClassNameFromUrl(test.url);
-					this.console.log(text);
-					this.harnessEvent("teststart", text);
+				    var testName = this.getClassNameFromUrl(test.url);
+					this.harnessEvent("teststart", testName);
 				}.bind(this),
 				testupdate: function (event, test, result) {
 					var className = this.getClassNameFromUrl(test.url);
-					var text = 'Test case [' + className + '] has been updated:\r\n' + result.description + (result.annotation ? ', ' + result.annotation : '');
-					this.console.log(text);
+					var text = result.description + (result.annotation ? ", " + result.annotation : '');
 					var state = result.passed === false ? Level.ERROR : Level.SUCCESS;
-					this.harnessEvent("assert", text, state, Ext.apply(result, { url: className }));
+					this.harnessEvent("assert", className, text, state, Ext.apply(result, { url: className }));
 				}.bind(this),
 				testfailedwithexception: function (event, test) {
-					var text = 'Test case [' + this.getClassNameFromUrl(test.url) + '] has failed with exception: \r\n' + test.failedException;
+				    var className = this.getClassNameFromUrl(test.url);
 					this.console.log(text);
-					this.harnessEvent("testfailedwithexception", text, Level.ERROR, { exception: test.failedException });
+					this.harnessEvent("testfailedwithexception", className, test.failedException, Level.ERROR, { exception: test.failedException });
 				}.bind(this),
 				testfinalize: function (event, test) {
-					var text = 'Test case [' + this.getClassNameFromUrl(test.url) + '] has completed';
-					this.console.log(text);
-					this.harnessEvent("testfinalize", text);
+				    var className = this.getClassNameFromUrl(test.url);
+				    this.harnessEvent("testfinalize", className);
 				}.bind(this)
 			}
 		});
@@ -100,11 +99,14 @@ Ext.define("JsTestRunner.TestRunner", {
 		}
 		return url;
 	},
-	harnessEvent: function (event, message, state, payload) {
+	harnessEvent: function (event, testId, message, state, payload) {
 		if (state === undefined) {
 			state = Level.INFO;
 		}
 		var data = { text: message, state: state };
+		if (testId) {
+		    data.testId = testId;
+		}
 		if (payload) {
 			data.payload = payload;
 		}
@@ -178,7 +180,16 @@ Ext.define("JsTestRunner.Client.SignalR", {
 		this.initHubs();
 		this.initMessages();
 		this.initConnection().done(this.onConnected.bind(this));
-		setInterval(this.checkConnection.bind(this), 1000);
+		setInterval(function () {
+		    try {
+		        this.checkConnection();
+		    } catch (e) {
+		        this.logEnabled = true;
+		        this.log("testRunnerBroker connection check failed with exception");
+		        this.logEnabled = false;
+		        this.console.logException(e);
+		    }
+		}, 1000);
 	},
 	checkConnectionFlag: true,
 	checkConnection: function () {
@@ -212,9 +223,10 @@ Ext.define("JsTestRunner.Client.SignalR", {
 	},
 	onConnected: function () {
 		var bi = this.getBrowserInfo();
-		this.testRunnerBroker.server.joinAsRunner(bi);
+		this.testRunnerBroker.server.joinAsRunner(bi).done(this.postState.bind(this, State.READY));
 		this.runner.on("harnessEvent", this.onHarnessEvent, this);
 		this.runner.on("log", this.log, this);
+		this.runner.on("state", this.postState, this);
 	},
 	getBrowserInfo: function () {
 		var ua = navigator.userAgent, tem, matchArray = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
@@ -238,6 +250,9 @@ Ext.define("JsTestRunner.Client.SignalR", {
 	},
 	log: function (msg) {
 		this.testRunnerBroker.server.log(msg);
+	},
+	postState: function (state) {
+	    this.testRunnerBroker.server.postState(state);
 	},
 	logError: function (message, stack) {
 		this.testRunnerBroker.server.logError(message, stack);
