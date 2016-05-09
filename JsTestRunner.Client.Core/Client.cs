@@ -17,33 +17,34 @@ namespace JsTestRunner.Client.Core
 		Full = 2
 	}
 
-    public class Client {
-	    readonly string _url;
-	    private IHubProxy<ITestRunnerBroker, ITestRunnerClientContract> _hubProxy;
-	    private readonly Action<string, bool?> _logger;
+	public class Client
+	{
+		readonly string _url;
+		private IHubProxy<ITestRunnerBroker, ITestRunnerClientContract> _hubProxy;
+		private readonly Action<string, bool?> _logger;
 		private readonly Dictionary<LoggingLevel, List<string>> _loggingLevelMap;
 		public LoggingLevel CurrentLoggingLevel {
 			get;
 			private set;
 		}
 
-	    public Client(string ulr, Action<string, bool?> logger) {
-		    _url = ulr;
-	        _logger = logger;
-		    CurrentLoggingLevel = LoggingLevel.Min;
-        }
+		public Client(string ulr, Action<string, bool?> logger) {
+			_url = ulr;
+			_logger = logger;
+			CurrentLoggingLevel = LoggingLevel.Min;
+		}
 
-	    public void Init() {
+		public void Connect(TimeSpan timeout) {
 			var hubConnection = new HubConnection(_url);
 			_hubProxy = hubConnection.CreateHubProxy<ITestRunnerBroker, ITestRunnerClientContract>("TestRunnerBroker");
 			InitSubscriptions();
 			ServicePointManager.DefaultConnectionLimit = 10;
-		    hubConnection.Start().Wait();
-		    _hubProxy.Call(h => h.JoinAsClient());
-	    }
+			hubConnection.Start().Wait(timeout);
+			_hubProxy.Call(h => h.JoinAsClient());
+		}
 		volatile int RunState = -1;
-	    private void InitSubscriptions() {
-			_hubProxy.SubscribeOn<string, string, int, string, JObject>(h=>h.TestEvent, (runner, eventName, state, text, payload) => {
+		private void InitSubscriptions() {
+			_hubProxy.SubscribeOn<string, string, int, string, JObject>(h => h.TestEvent, (runner, eventName, state, text, payload) => {
 				if (!CheckLogTestEvent(eventName, state)) {
 					return;
 				}
@@ -61,16 +62,16 @@ namespace JsTestRunner.Client.Core
 					}
 				}
 			});
-			_hubProxy.SubscribeOn<string,string>(h=>h.AppendLog, (runner, log) => {
+			_hubProxy.SubscribeOn<string, string>(h => h.AppendLog, (runner, log) => {
 				_logger(string.Format("Runner: {2}{1}{0}", log, Environment.NewLine, runner), null);
 			});
-	    }
+		}
 
-	    private bool CheckLogTestEvent(string name, int state) {
-		    return true;
-	    }
+		private bool CheckLogTestEvent(string name, int state) {
+			return true;
+		}
 
-	    public Task RunTest(string name) {
+		public Task RunTest(string name) {
 			return Task.Run(() => {
 				lock (this) {
 					RunState = 0;
@@ -84,14 +85,14 @@ namespace JsTestRunner.Client.Core
 					}
 				}
 			});
-	    }
+		}
 
-	    public void ReloadPage() {
+		public void ReloadPage() {
 			_hubProxy.Call(broker => broker.ReloadPage(true));
-	    }
+		}
 
-	    public void Ping() {
-		    _hubProxy.Call(h => h.Ping());
-	    }
+		public void Ping() {
+			_hubProxy.Call(h => h.Ping());
+		}
 	}
 }

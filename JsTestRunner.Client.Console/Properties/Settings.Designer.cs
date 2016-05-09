@@ -26,12 +26,61 @@ namespace JsTestRunner.Client.Console.Properties {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("http://localhost:53853/signalr")]
-        public string Url {
+        public string ServerUrl {
             get {
-                return ((string)(this["Url"]));
+                return ((string)(this["ServerUrl"]));
             }
             set {
-                this["Url"] = value;
+                this["ServerUrl"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("53853")]
+        public int ServerPort {
+            get {
+                return ((int)(this["ServerPort"]));
+            }
+            set {
+                this["ServerPort"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("http://localhost:2376/WebApp780/0/TestTools/Tests.aspx?useCoreBundle=true&harness" +
+            "Mode=coverage")]
+        public string TestUrl {
+            get {
+                return ((string)(this["TestUrl"]));
+            }
+            set {
+                this["TestUrl"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("00:00:05")]
+        public global::System.TimeSpan ConnectionTimeout {
+            get {
+                return ((global::System.TimeSpan)(this["ConnectionTimeout"]));
+            }
+            set {
+                this["ConnectionTimeout"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("JsTestRunner.Server.exe")]
+        public string TestRunnerServerAppName {
+            get {
+                return ((string)(this["TestRunnerServerAppName"]));
+            }
+            set {
+                this["TestRunnerServerAppName"] = value;
             }
         }
     }
