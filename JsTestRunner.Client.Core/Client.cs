@@ -55,8 +55,8 @@ namespace JsTestRunner.Client.Core
 			_hubProxy.SubscribeOn<string, string>(h => h.AppendLog, (runner, log) => {
 				_logger(string.Format("Runner: {2}{1}{0}", log, Environment.NewLine, runner), null);
 			});
+
 			_hubProxy.SubscribeOn<string, RunnerState>(h => h.SendRunnerState, (runnerInfo, state) => {
-				_lastRunnerState = state;
 				//todo: set state corectly
 			});
 		}
