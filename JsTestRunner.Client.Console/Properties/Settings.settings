@@ -17,5 +17,8 @@
     <Setting Name="TestRunnerServerAppName" Type="System.String" Scope="User">
       <Value Profile="(Default)">JsTestRunner.Server.exe</Value>
     </Setting>
+    <Setting Name="TestRunTimeout" Type="System.TimeSpan" Scope="User">
+      <Value Profile="(Default)">00:02:00</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

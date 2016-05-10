@@ -35,14 +35,15 @@ namespace JsTestRunner.Client.Console
 			}
 			System.Console.WriteLine("Initialized.");
 			if (!string.IsNullOrWhiteSpace(testName)) {
-				client.RunTest(testName).Wait();
+				client.RunTest(testName);
+				client.WaitRunToComplete(Properties.Settings.Default.TestRunTimeout);
 				return;
 			}
 			CommandLoop(client);
 		}
 
 		private static void TryStartJsRunnerServer() {
-			var binPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+			var binPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) ?? string.Empty;
 			var executablePath = Path.Combine(binPath, Properties.Settings.Default.TestRunnerServerAppName);
 			if (File.Exists(executablePath)) {
 				var pi = System.Diagnostics.Process.Start(executablePath);
@@ -77,11 +78,12 @@ namespace JsTestRunner.Client.Console
 								client.Ping();
 								break;
 							case Command.Reconnect:
-								client.Connect();
+								client.Connect(Properties.Settings.Default.ConnectionTimeout);
 								break;
 							case Command.RunTest:
 								System.Console.WriteLine("Running test {0}.", repl.TestName);
 								client.RunTest(repl.TestName);
+								client.WaitRunToComplete(Properties.Settings.Default.TestRunTimeout);
 								break;
 							case Command.Help:
 							default:
@@ -121,12 +123,8 @@ namespace JsTestRunner.Client.Console
 		public string CommandText { get; set; }
 		public string TestName { get; set; }
 
-		private Command? _cmd;
 		public Command Command {
 			get {
-				if (_cmd.HasValue) {
-					return _cmd.Value;
-				}
 				switch (CommandText) {
 					case "r":
 					case "refresh":
@@ -140,7 +138,7 @@ namespace JsTestRunner.Client.Console
 						return Command.Reconnect;
 					default:
 						return Command.RunTest;
-                }
+				}
 			}
 		}
 		

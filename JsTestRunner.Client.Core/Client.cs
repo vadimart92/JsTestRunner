@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 using JsTestRunner.Core.Interfaces;
 using Microsoft.AspNet.SignalR.Client;
+using Microsoft.AspNet.SignalR.Client.Http;
+using Microsoft.AspNet.SignalR.Client.Transports;
 using Newtonsoft.Json.Linq;
-using System.Reactive;
 
 namespace JsTestRunner.Client.Core
 {
@@ -17,37 +16,30 @@ namespace JsTestRunner.Client.Core
 		Full = 2
 	}
 
-	public class Client
+	public class Client: IDisposable
 	{
 		readonly string _url;
 		private IHubProxy<ITestRunnerBroker, ITestRunnerClientContract> _hubProxy;
 		private readonly Action<string, bool?> _logger;
-		private readonly Dictionary<LoggingLevel, List<string>> _loggingLevelMap;
-		public LoggingLevel CurrentLoggingLevel {
-			get;
-			private set;
-		}
+		private readonly TestRunState _runState;
 
 		public Client(string ulr, Action<string, bool?> logger) {
 			_url = ulr;
 			_logger = logger;
-			CurrentLoggingLevel = LoggingLevel.Min;
+			_runState = new TestRunState();
 		}
 
 		public void Connect(TimeSpan timeout) {
 			var hubConnection = new HubConnection(_url);
 			_hubProxy = hubConnection.CreateHubProxy<ITestRunnerBroker, ITestRunnerClientContract>("TestRunnerBroker");
 			InitSubscriptions();
-			ServicePointManager.DefaultConnectionLimit = 10;
 			hubConnection.Start().Wait(timeout);
 			_hubProxy.Call(h => h.JoinAsClient());
 		}
-		volatile int RunState = -1;
+
+		
 		private void InitSubscriptions() {
 			_hubProxy.SubscribeOn<string, string, int, string, JObject>(h => h.TestEvent, (runner, eventName, state, text, payload) => {
-				if (!CheckLogTestEvent(eventName, state)) {
-					return;
-				}
 				bool? stateRes = null;
 				if (state != 2) {
 					stateRes = state == 1;
@@ -57,9 +49,7 @@ namespace JsTestRunner.Client.Core
 					_logger(text, stateRes);
 				}
 				if (eventName == "testsuiteend") {
-					lock (this) {
-						RunState = 1;
-					}
+					_runState.Stop();
 				}
 			});
 			_hubProxy.SubscribeOn<string, string>(h => h.AppendLog, (runner, log) => {
@@ -67,24 +57,19 @@ namespace JsTestRunner.Client.Core
 			});
 		}
 
-		private bool CheckLogTestEvent(string name, int state) {
-			return true;
+		public void RunTest(string name) {
+			_hubProxy.Call(broker => broker.RunTest(name));
+			_runState.Run();
 		}
 
-		public Task RunTest(string name) {
-			return Task.Run(() => {
-				lock (this) {
-					RunState = 0;
-				}
-				_hubProxy.Call(broker => broker.RunTest(name));
+		public void WaitRunToComplete(TimeSpan testRunTimeout) {
+			Task.Run(() => {
 				while (true) {
-					lock (this) {
-						if (RunState == 1) {
-							return;
-						}
+					if (!_runState.IsRunning(testRunTimeout)) {
+						return;
 					}
 				}
-			});
+			}).Wait();
 		}
 
 		public void ReloadPage() {
@@ -92,7 +77,11 @@ namespace JsTestRunner.Client.Core
 		}
 
 		public void Ping() {
-			_hubProxy.Call(h => h.Ping());
+			_hubProxy.Call(broker => broker.Ping());
+		}
+
+		public void Dispose() {
+			_hubProxy.Dispose();
 		}
 	}
 }
