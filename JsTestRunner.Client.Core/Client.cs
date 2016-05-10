@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 using JsTestRunner.Core.Interfaces;
 using Microsoft.AspNet.SignalR.Client;
+using Microsoft.AspNet.SignalR.Client.Http;
+using Microsoft.AspNet.SignalR.Client.Transports;
 using Newtonsoft.Json.Linq;
-using System.Reactive;
 
 namespace JsTestRunner.Client.Core
 {
@@ -17,27 +16,42 @@ namespace JsTestRunner.Client.Core
 		Full = 2
 	}
 
-    public class Client {
-	    readonly string _url;
-	    private IHubProxy<ITestRunnerBroker, ITestRunnerClientContract> _hubProxy;
-	    private readonly Action<string, bool?> _logger;
+	public class Client: IDisposable
+	{
+		readonly string _url;
+		private IHubProxy<ITestRunnerBroker, ITestRunnerClientContract> _hubProxy;
+		private readonly Action<string, bool?> _logger;
+		private readonly TestRunState _runState;
 
-	    public Client(string ulr, Action<string, bool?> logger) {
-		    _url = ulr;
-	        _logger = logger;
-        }
+		public Client(string ulr, Action<string, bool?> logger) {
+			_url = ulr;
+			_logger = logger;
+			_runState = new TestRunState();
+		}
 
-	    public void Init() {
+		public void Connect(TimeSpan timeout) {
 			var hubConnection = new HubConnection(_url);
 			_hubProxy = hubConnection.CreateHubProxy<ITestRunnerBroker, ITestRunnerClientContract>("TestRunnerBroker");
 			InitSubscriptions();
-			ServicePointManager.DefaultConnectionLimit = 10;
-		    hubConnection.Start().Wait();
-		    _hubProxy.Call(h => h.JoinAsClient());
-	    }
+			hubConnection.Start().Wait(timeout);
+			_hubProxy.Call(h => h.JoinAsClient());
+		}
+
 		
-	    private void InitSubscriptions() {
-			_hubProxy.SubscribeOn<string, string, int, string, JObject>(h => h.TestEvent, OnTestEventAccepted);
+		private void InitSubscriptions() {
+			_hubProxy.SubscribeOn<string, string, int, string, JObject>(h => h.TestEvent, (runner, eventName, state, text, payload) => {
+				bool? stateRes = null;
+				if (state != 2) {
+					stateRes = state == 1;
+				}
+				_logger(string.Format("Runner: {2}{1}Event: {0}", eventName, Environment.NewLine, runner), stateRes);
+				if (text != null) {
+					_logger(text, stateRes);
+				}
+				if (eventName == "testsuiteend") {
+					_runState.Stop();
+				}
+			});
 			_hubProxy.SubscribeOn<string, string>(h => h.AppendLog, (runner, log) => {
 				_logger(string.Format("Runner: {2}{1}{0}", log, Environment.NewLine, runner), null);
 			});
@@ -47,47 +61,31 @@ namespace JsTestRunner.Client.Core
 			});
 		}
 
-	    private volatile RunnerState _lastRunnerState = RunnerState.Waiting;
-
-		volatile int _runState = -1;
-		private void OnTestEventAccepted(string runner, string eventName, int state, string text, JObject payload) {
-			bool? stateRes = null;
-			if (state != 2) {
-				stateRes = (state == 1);
-			}
-			_logger(string.Format("Runner: {2}{1}Event: {0}", eventName, Environment.NewLine, runner), stateRes);
-			if (text != null) {
-				_logger(text, stateRes);
-			}
-			if (eventName == "testsuiteend") {
-				lock (this) {
-					_runState = 0;
-				}
-			}
+		public void RunTest(string name) {
+			_hubProxy.Call(broker => broker.RunTest(name));
+			_runState.Run();
 		}
 
-		public Task RunTest(string name) {
-			return Task.Run(() => {
-				lock (this) {
-					_runState = 1;
-				}
-				_hubProxy.Call(broker => broker.RunTest(name));
+		public void WaitRunToComplete(TimeSpan testRunTimeout) {
+			Task.Run(() => {
 				while (true) {
-					lock (this) {
-						if (_runState == 0) {
-							return;
-						}
+					if (!_runState.IsRunning(testRunTimeout)) {
+						return;
 					}
 				}
-			});
-	    }
+			}).Wait();
+		}
 
-	    public void ReloadPage() {
+		public void ReloadPage() {
 			_hubProxy.Call(broker => broker.ReloadPage(true));
-	    }
+		}
 
-	    public void Ping() {
-		    _hubProxy.Call(h => h.Ping());
-	    }
+		public void Ping() {
+			_hubProxy.Call(broker => broker.Ping());
+		}
+
+		public void Dispose() {
+			_hubProxy.Dispose();
+		}
 	}
 }

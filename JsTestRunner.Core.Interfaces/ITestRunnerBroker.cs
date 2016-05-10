@@ -14,6 +14,5 @@ namespace JsTestRunner.Core.Interfaces
 		void ReloadPage(bool forceGet);
 		void RunTest(string name);
 		void Ping();
-		void PostState(RunnerState state);
 	}
 }

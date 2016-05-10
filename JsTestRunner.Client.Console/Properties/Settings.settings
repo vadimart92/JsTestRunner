@@ -2,8 +2,23 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="JsTestRunner.Client.Console.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
-    <Setting Name="Url" Type="System.String" Scope="User">
+    <Setting Name="ServerUrl" Type="System.String" Scope="User">
       <Value Profile="(Default)">http://localhost:53853/signalr</Value>
+    </Setting>
+    <Setting Name="ServerPort" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">53853</Value>
+    </Setting>
+    <Setting Name="TestUrl" Type="System.String" Scope="User">
+      <Value Profile="(Default)">http://localhost:2376/WebApp780/0/TestTools/Tests.aspx?useCoreBundle=true&amp;harnessMode=coverage</Value>
+    </Setting>
+    <Setting Name="ConnectionTimeout" Type="System.TimeSpan" Scope="User">
+      <Value Profile="(Default)">00:00:05</Value>
+    </Setting>
+    <Setting Name="TestRunnerServerAppName" Type="System.String" Scope="User">
+      <Value Profile="(Default)">JsTestRunner.Server.exe</Value>
+    </Setting>
+    <Setting Name="TestRunTimeout" Type="System.TimeSpan" Scope="User">
+      <Value Profile="(Default)">00:02:00</Value>
     </Setting>
   </Settings>
 </SettingsFile>

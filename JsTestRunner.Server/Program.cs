@@ -30,10 +30,12 @@ namespace JsTestRunner.Server
 				return;
 			}
 			var url = new UriBuilder(Uri.UriSchemeHttp, options.Host, options.Port).ToString();
+			string clientUrl = options.AutoStartClients ? options.Url : null;
+			var browserPath = options.BrowserPath;
 			using (WebApp.Start(url)) {
 				Console.WriteLine("Server running on {0}", url);
-				if (options.AutoStartClients) {
-					System.Diagnostics.Process.Start(options.BrowserPath, options.Url);
+				if (!string.IsNullOrEmpty(clientUrl)) {
+					System.Diagnostics.Process.Start(browserPath, clientUrl);
 				}
 				Console.WriteLine("Press enter to stop.");
 				Console.ReadLine();

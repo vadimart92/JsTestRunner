@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using NDesk.Options;
@@ -9,6 +11,8 @@ namespace JsTestRunner.Client.Console
 {
 	class Program
 	{
+		static readonly ConsoleColor DefColor = System.Console.ForegroundColor;
+
 		static void Main(string[] args) {
 			string url = null;
 			string testName = null;
@@ -18,26 +22,45 @@ namespace JsTestRunner.Client.Console
 			};
 			opts.Parse(args);
 			if (string.IsNullOrWhiteSpace(url)) {
-				url =  Properties.Settings.Default.Url;
+				url =  Properties.Settings.Default.ServerUrl;
 			}
-			var defColor = System.Console.ForegroundColor;
-			var client = new Core.Client(url, (t, s) => {
-				if (s.HasValue && s.Value) {
-					System.Console.ForegroundColor = ConsoleColor.Green;
-				}
-				else if (s.HasValue) {
-					System.Console.ForegroundColor = ConsoleColor.Red;
-				}
-				System.Console.WriteLine(t);
-				System.Console.ForegroundColor = defColor;
-			});
-			client.Init();
+			var client = new Core.Client(url, Log);
+			try {
+				InitConnection(client);
+			} catch (Exception ex) {
+				System.Console.WriteLine("Connection initialization error");
+				System.Console.WriteLine(ex.Message);
+				TryStartJsRunnerServer();
+				InitConnection(client);
+			}
 			System.Console.WriteLine("Initialized.");
-			bool cmdEmpty;
 			if (!string.IsNullOrWhiteSpace(testName)) {
-				client.RunTest(testName).Wait();
+				client.RunTest(testName);
+				client.WaitRunToComplete(Properties.Settings.Default.TestRunTimeout);
 				return;
 			}
+			CommandLoop(client);
+		}
+
+		private static void TryStartJsRunnerServer() {
+			var binPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) ?? string.Empty;
+			var executablePath = Path.Combine(binPath, Properties.Settings.Default.TestRunnerServerAppName);
+			if (File.Exists(executablePath)) {
+				var pi = System.Diagnostics.Process.Start(executablePath);
+				if (pi != null && !pi.HasExited) {
+					return;
+				}
+			}
+			throw new InvalidOperationException("can't start js runner server");
+		}
+
+		private static void InitConnection(Core.Client client) {
+			client.Connect(Properties.Settings.Default.ConnectionTimeout);
+		}
+
+
+		private static void CommandLoop(Core.Client client) {
+			bool cmdEmpty;
 			do {
 				var cmd = System.Console.ReadLine();
 				System.Console.Clear();
@@ -55,11 +78,12 @@ namespace JsTestRunner.Client.Console
 								client.Ping();
 								break;
 							case Command.Reconnect:
-								client.Init();
+								client.Connect(Properties.Settings.Default.ConnectionTimeout);
 								break;
 							case Command.RunTest:
 								System.Console.WriteLine("Running test {0}.", repl.TestName);
 								client.RunTest(repl.TestName);
+								client.WaitRunToComplete(Properties.Settings.Default.TestRunTimeout);
 								break;
 							case Command.Help:
 							default:
@@ -71,9 +95,21 @@ namespace JsTestRunner.Client.Console
 					}
 				}
 			} while (!cmdEmpty);
+		}
 
+		static void Log (string t, bool? s) {
+			if (s.HasValue && s.Value) {
+				System.Console.ForegroundColor = ConsoleColor.Green;
+			}
+			else if (s.HasValue) {
+				System.Console.ForegroundColor = ConsoleColor.Red;
+			}
+			System.Console.WriteLine(t);
+			System.Console.ForegroundColor = DefColor;
 		}
 	}
+
+		
 
 	public enum Command
 	{
@@ -87,12 +123,8 @@ namespace JsTestRunner.Client.Console
 		public string CommandText { get; set; }
 		public string TestName { get; set; }
 
-		private Command? _cmd;
 		public Command Command {
 			get {
-				if (_cmd.HasValue) {
-					return _cmd.Value;
-				}
 				switch (CommandText) {
 					case "r":
 					case "refresh":
@@ -106,7 +138,7 @@ namespace JsTestRunner.Client.Console
 						return Command.Reconnect;
 					default:
 						return Command.RunTest;
-                }
+				}
 			}
 		}
 		

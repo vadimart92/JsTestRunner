@@ -89,10 +89,6 @@ namespace JsTestRunner.Core
 			Runners.Ping();
 		}
 
-		public void PostState(RunnerState state) {
-			Clients.Others.SendRunnerState(RunnerInfo, state);
-        }
-
 		public void ReloadPage(bool forceGet) {
 			Runners.Reload(forceGet);
 		}
