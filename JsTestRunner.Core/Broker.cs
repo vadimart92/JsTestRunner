@@ -88,6 +88,9 @@ namespace JsTestRunner.Core
 			Clients.Caller.AppendLog("Ping accepted. ",  RunnersCountMs);
 			Runners.Ping();
 		}
+		public void PostState(RunnerState state) {
+			Clients.Others.SendRunnerState(RunnerInfo, state);
+		}
 
 		public void ReloadPage(bool forceGet) {
 			Runners.Reload(forceGet);
