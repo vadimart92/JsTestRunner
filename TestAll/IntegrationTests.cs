@@ -6,6 +6,7 @@ using JsTestRunner.Core.Interfaces;
 using Microsoft.AspNet.SignalR.Client;
 using Microsoft.AspNet.SignalR.Client.Hubs;
 using Microsoft.Owin.Hosting;
+using Newtonsoft.Json;
 using NUnit.Framework;
 
 namespace TestAll
@@ -28,7 +29,9 @@ namespace TestAll
 				Console.WriteLine(s);
 			});
 			_consoleClient.Connect(_timeout);
-			_jsHubConnection = new HubConnection(_serverUrl);
+			var queryString = "clientType=JsTestRunner&browserInfo=" +
+							JsonConvert.SerializeObject(new BrowserInfo {Name = "test", Version = "0.1"});
+			_jsHubConnection = new HubConnection(_serverUrl, queryString);
 			ServicePointManager.DefaultConnectionLimit = 10;
 		}
 
@@ -36,7 +39,6 @@ namespace TestAll
 			_jsProxy = _jsHubConnection.CreateHubProxy<ITestRunnerBroker, ITestRunnerClientContract>("TestRunnerBroker");
 			proxyInit(_jsProxy);
 			_jsHubConnection.Start().Wait(_timeout);
-			_jsProxy.Call(h => h.JoinAsRunner(new BrowserInfo {Name = "test", Version = "0.1"}));
 		}
 
 		[TearDown]
