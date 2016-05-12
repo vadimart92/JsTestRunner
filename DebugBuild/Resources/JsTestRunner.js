@@ -232,8 +232,7 @@ Ext.define("JsTestRunner.Client.SignalR", {
 		});
 	},
 	onConnected: function () {
-		var bi = this.getBrowserInfo();
-		this.testRunnerBroker.server.joinAsRunner(bi).done(this.postState.bind(this, State.READY));
+	    this.postState.bind(this, State.READY);
 		this.runner.on("harnessEvent", this.onHarnessEvent, this);
 		this.runner.on("log", this.log, this);
 		this.runner.on("state", this.postState, this);

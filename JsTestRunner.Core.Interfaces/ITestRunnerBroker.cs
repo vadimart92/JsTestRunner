@@ -5,7 +5,6 @@ namespace JsTestRunner.Core.Interfaces
 {
 	public interface ITestRunnerBroker
 	{
-		Task JoinAsRunner(BrowserInfo info);
 		void Log(string log);
 		void LogError(string message, string stackTrace);
 
