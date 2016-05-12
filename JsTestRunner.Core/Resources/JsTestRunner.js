@@ -189,7 +189,7 @@ Ext.define("JsTestRunner.Client.SignalR", {
 		        this.logEnabled = false;
 		        this.console.logException(e);
 		    }
-		}, 1000);
+		}.bind(this), 1000);
 	},
 	checkConnectionFlag: true,
 	checkConnection: function () {
