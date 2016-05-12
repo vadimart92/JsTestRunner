@@ -15,5 +15,6 @@ namespace JsTestRunner.Core.Interfaces
 		void RunTest(string name);
 		void Ping();
 		void PostState(RunnerState state);
+		void RequestRunnersCount();
 	}
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using JsTestRunner.Core.Interfaces;
 using Microsoft.AspNet.SignalR.Client;
@@ -37,6 +38,23 @@ namespace JsTestRunner.Client.Core
 			_hubProxy.Call(h => h.JoinAsClient());
 		}
 
+		private volatile bool _waitingForRunner = false;
+		public void WaitForRunner() {
+			_waitingForRunner = true;
+			int attempsCount = 0;
+			var retryCount = TimeSpan.FromMinutes(2).TotalSeconds;
+			while (true) {
+				attempsCount++;
+				_hubProxy.Call(h => h.RequestRunnersCount());
+				Thread.Sleep(TimeSpan.FromSeconds(1));
+				if (!_waitingForRunner) {
+					return;
+				}
+				if (attempsCount > retryCount) {
+					throw new InvalidOperationException("Cant get runners count");
+				}
+			}
+		}
 		
 		private void InitSubscriptions() {
 			_hubProxy.SubscribeOn<string, string, int, string, JObject>(h => h.TestEvent, (runner, eventName, state, text, payload) => {
@@ -57,7 +75,10 @@ namespace JsTestRunner.Client.Core
 			});
 
 			_hubProxy.SubscribeOn<string, RunnerState>(h => h.SendRunnerState, (runnerInfo, state) => {
-				//todo: set state corectly
+				//todo: handle state and info
+				if (state == RunnerState.Ready) {
+					_waitingForRunner = false;
+				}
 			});
 		}
 

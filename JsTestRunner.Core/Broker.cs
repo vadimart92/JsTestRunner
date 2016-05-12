@@ -92,6 +92,10 @@ namespace JsTestRunner.Core
 			Clients.Others.SendRunnerState(RunnerInfo, state);
 		}
 
+		public void RequestRunnersCount() {
+			RunnerClients.SendRunnerState(string.Empty, _testRunners.Count > 0? RunnerState.Ready : RunnerState.Waiting);
+		}
+
 		public void ReloadPage(bool forceGet) {
 			Runners.Reload(forceGet);
 		}

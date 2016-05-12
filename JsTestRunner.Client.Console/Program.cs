@@ -32,6 +32,8 @@ namespace JsTestRunner.Client.Console
 				System.Console.WriteLine(ex.Message);
 				TryStartJsRunnerServer();
 				InitConnection(client);
+				System.Console.WriteLine("Waiting for runner...");
+				client.WaitForRunner();
 			}
 			System.Console.WriteLine("Initialized.");
 			if (!string.IsNullOrWhiteSpace(testName)) {
@@ -45,13 +47,24 @@ namespace JsTestRunner.Client.Console
 		private static void TryStartJsRunnerServer() {
 			var binPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) ?? string.Empty;
 			var executablePath = Path.Combine(binPath, Properties.Settings.Default.TestRunnerServerAppName);
+			System.Console.ForegroundColor = ConsoleColor.Green;
+			System.Console.WriteLine("May be server app located in: {0}", executablePath);
 			if (File.Exists(executablePath)) {
-				var pi = System.Diagnostics.Process.Start(executablePath);
-				if (pi != null && !pi.HasExited) {
+				var startArgs = GetServerStartArgs();
+				var startInfo = new System.Diagnostics.ProcessStartInfo(executablePath, startArgs);
+				startInfo.WorkingDirectory = Path.GetDirectoryName(executablePath);
+				startInfo.UseShellExecute = true;
+				var process = System.Diagnostics.Process.Start(startInfo);
+				if (process != null && !process.HasExited) {
 					return;
 				}
 			}
 			throw new InvalidOperationException("can't start js runner server");
+		}
+
+		private static string GetServerStartArgs() {
+			return  string.Format("-p={0} -url=\"{1}\"", Properties.Settings.Default.ServerPort, 
+				Properties.Settings.Default.TestUrl);
 		}
 
 		private static void InitConnection(Core.Client client) {
