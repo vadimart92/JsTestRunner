@@ -23,7 +23,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\DebugBuild\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -74,6 +74,10 @@
     <ProjectReference Include="..\JsTestRunner.Client.Core\JsTestRunner.Client.Core.csproj">
       <Project>{08bc267f-6816-4284-8ff4-6a1c8cae1449}</Project>
       <Name>JsTestRunner.Client.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\JsTestRunner.Server\JsTestRunner.Server.csproj">
+      <Project>{876eba3e-c563-4e16-bf2a-5f21a410d6d7}</Project>
+      <Name>JsTestRunner.Server</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

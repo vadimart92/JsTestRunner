@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -47,14 +48,14 @@ namespace JsTestRunner.Client.Console
 		private static void TryStartJsRunnerServer() {
 			var binPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) ?? string.Empty;
 			var executablePath = Path.Combine(binPath, Properties.Settings.Default.TestRunnerServerAppName);
-			System.Console.ForegroundColor = ConsoleColor.Green;
 			System.Console.WriteLine("May be server app located in: {0}", executablePath);
 			if (File.Exists(executablePath)) {
 				var startArgs = GetServerStartArgs();
-				var startInfo = new System.Diagnostics.ProcessStartInfo(executablePath, startArgs);
-				startInfo.WorkingDirectory = Path.GetDirectoryName(executablePath);
-				startInfo.UseShellExecute = true;
-				var process = System.Diagnostics.Process.Start(startInfo);
+				var startInfo = new ProcessStartInfo(executablePath, startArgs) {
+					WorkingDirectory = Path.GetDirectoryName(executablePath),
+					UseShellExecute = true
+				};
+				var process = Process.Start(startInfo);
 				if (process != null && !process.HasExited) {
 					return;
 				}

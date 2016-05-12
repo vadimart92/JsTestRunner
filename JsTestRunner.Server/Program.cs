@@ -2,6 +2,9 @@
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
+using JsTestRunner.Core;
+using JsTestRunner.Core.Interfaces;
 using Microsoft.Owin.Hosting;
 using Microsoft.Win32;
 using NDesk.Options;
@@ -30,12 +33,24 @@ namespace JsTestRunner.Server
 				return;
 			}
 			var url = new UriBuilder(Uri.UriSchemeHttp, options.Host, options.Port).ToString();
-			string clientUrl = options.AutoStartClients ? options.Url : null;
+			
 			var browserPath = options.BrowserPath;
-			using (WebApp.Start(url)) {
+			using (WebApp.Start<Startup>(url)) {
 				Console.WriteLine("Server running on {0}", url);
-				if (!string.IsNullOrEmpty(clientUrl)) {
-					System.Diagnostics.Process.Start(browserPath, clientUrl);
+				if (options.AutoStartClients && !string.IsNullOrEmpty(options.Url)) {
+					var ct = new CancellationTokenSource();
+					var waitRunnerTask = TestRunnerBroker.WaitClientToConnect(ct.Token);
+					Console.WriteLine("Waiting runner clients to connect");
+					waitRunnerTask.Wait(TimeSpan.FromSeconds(5));
+					ct.Cancel();
+					BrowserInfo browserInfo;
+					if (waitRunnerTask.IsCompleted && (browserInfo = waitRunnerTask.Result) != null) {
+						Console.WriteLine("Runner clients found. Browser: {0}, version: {1}",
+								browserInfo.Name, browserInfo.Version);
+					} else {
+						Console.WriteLine("Runner clients not found, starting new one");
+						System.Diagnostics.Process.Start(browserPath, options.Url);
+					}
 				}
 				Console.WriteLine("Press enter to stop.");
 				Console.ReadLine();

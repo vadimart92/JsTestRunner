@@ -31,21 +31,28 @@ namespace JsTestRunner.Client.Core
 		}
 
 		public void Connect(TimeSpan timeout) {
-			var hubConnection = new HubConnection(_url);
-			_hubProxy = hubConnection.CreateHubProxy<ITestRunnerBroker, ITestRunnerClientContract>("TestRunnerBroker");
+			_hubConnection = new HubConnection(_url);
+			_hubProxy = _hubConnection.CreateHubProxy<ITestRunnerBroker, ITestRunnerClientContract>("TestRunnerBroker");
 			InitSubscriptions();
-			hubConnection.Start().Wait(timeout);
+			_hubConnection.Start().Wait(timeout);
 			_hubProxy.Call(h => h.JoinAsClient());
 		}
 
 		private volatile bool _waitingForRunner = false;
+		private HubConnection _hubConnection;
+
 		public void WaitForRunner() {
 			_waitingForRunner = true;
 			int attempsCount = 0;
 			var retryCount = TimeSpan.FromMinutes(2).TotalSeconds;
 			while (true) {
 				attempsCount++;
-				_hubProxy.Call(h => h.RequestRunnersCount());
+				if (_hubConnection.State == ConnectionState.Connected) {
+					_hubProxy.Call(h => h.RequestRunnersCount());
+				} else {
+					_hubConnection.Start();
+				}
+				
 				Thread.Sleep(TimeSpan.FromSeconds(1));
 				if (!_waitingForRunner) {
 					return;
@@ -73,10 +80,14 @@ namespace JsTestRunner.Client.Core
 			_hubProxy.SubscribeOn<string, string>(h => h.AppendLog, (runner, log) => {
 				_logger(string.Format("Runner: {2}{1}{0}", log, Environment.NewLine, runner), null);
 			});
-
 			_hubProxy.SubscribeOn<string, RunnerState>(h => h.SendRunnerState, (runnerInfo, state) => {
 				//todo: handle state and info
 				if (state == RunnerState.Ready) {
+					_waitingForRunner = false;
+				}
+			});
+			_hubProxy.SubscribeOn<bool>(h => h.SendAnyRunnerConnected, (isConnected) => {
+				if (isConnected) {
 					_waitingForRunner = false;
 				}
 			});

@@ -8,5 +8,6 @@ namespace JsTestRunner.Core.Interfaces {
 		void TestEvent(string runner, string eventName, int state, string text, JObject data);
 		void Ping();
 		void SendRunnerState(string runnerInfo, RunnerState state);
+		void SendAnyRunnerConnected(bool connected);
 	}
 }

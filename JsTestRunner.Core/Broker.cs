@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using JsTestRunner.Core.Interfaces;
 using Microsoft.AspNet.SignalR;
 using Microsoft.AspNet.SignalR.Hubs;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace JsTestRunner.Core
@@ -13,6 +16,7 @@ namespace JsTestRunner.Core
 	public class TestRunnerBroker : Hub<ITestRunnerClientContract>, ITestRunnerBroker
 	{
 		private static readonly ConcurrentDictionary<string, BrowserInfo> _testRunners = new ConcurrentDictionary<string, BrowserInfo>();
+		private static readonly ConcurrentBag<string> _testRunnerClients = new ConcurrentBag<string>();
 		private const string TestRunnersGroupName = "testRunners";
 		private const string ClientsGroupName = "clients";
 
@@ -30,15 +34,49 @@ namespace JsTestRunner.Core
 			return base.OnDisconnected(stopCalled);
 		}
 
+		public static Task<BrowserInfo> WaitClientToConnect(CancellationToken token) {
+			int maxLoopCount = 100;
+			return Task<BrowserInfo>.Factory.StartNew(() => {
+				while (true) {
+					if (IsAnyRunnerConnected) {
+						return _testRunners.Values.First();
+					}
+					if (token.IsCancellationRequested) {
+						return null;
+					}
+					if (maxLoopCount == 0) {
+						return null;
+					}
+					Thread.Sleep(TimeSpan.FromSeconds(1));
+					maxLoopCount--;
+				}
+			});
+		}
+
 		private string RunnersCountMs {
 			get { return string.Format("Active runners: {0}", _testRunners.Count); }
 		}
 
 		public override Task OnReconnected() {
+			CheckClientConnected();
+			return base.OnReconnected();
+		}
+
+		public override Task OnConnected() {
+			CheckClientConnected();
+			return base.OnConnected();
+		}
+
+		void CheckClientConnected() {
 			if (_testRunners.ContainsKey(Context.ConnectionId)) {
 				RunnerClients.AppendLog(RunnerInfo, "Runner reconected. " + RunnersCountMs);
+			} else {
+				if (Context.GetClientType() == ClientType.JsTestRunner) {
+					var browserInfoString = Context.QueryString["browserInfo"];
+					var bi = JsonConvert.DeserializeObject<BrowserInfo>(browserInfoString);
+					JoinAsRunner(bi);
+				}
 			}
-			return base.OnReconnected();
 		}
 
 		private string RunnerInfo {
@@ -73,6 +111,7 @@ namespace JsTestRunner.Core
 		#region ClientAPI
 
 		public Task JoinAsClient() {
+			_testRunnerClients.Add(Context.ConnectionId);
 			return Groups.Add(Context.ConnectionId, ClientsGroupName);
 		}
 
@@ -81,19 +120,35 @@ namespace JsTestRunner.Core
 		}
 
 		public void RunTest(string name) {
+			if (!IsAnyRunnerConnected) {
+				Log("No test runner found. Waiting to connect...");
+				var cts = new CancellationTokenSource();
+				WaitClientToConnect(cts.Token).Wait(TimeSpan.FromSeconds(5));
+				cts.Cancel();
+				if (!IsAnyRunnerConnected) {
+					Log("No test runner found. Tyr to restart plaese.");
+					return;
+				}
+			}
 			Runners.RunTest(name);
+
+		}
+
+		private static bool IsAnyRunnerConnected {
+			get { return _testRunners.Count != 0; }
 		}
 
 		public void Ping() {
 			Clients.Caller.AppendLog("Ping accepted. ",  RunnersCountMs);
 			Runners.Ping();
 		}
+
 		public void PostState(RunnerState state) {
-			Clients.Others.SendRunnerState(RunnerInfo, state);
+			RunnerClients.SendRunnerState(RunnerInfo, state);
 		}
 
 		public void RequestRunnersCount() {
-			RunnerClients.SendRunnerState(string.Empty, _testRunners.Count > 0? RunnerState.Ready : RunnerState.Waiting);
+			Clients.Caller.SendAnyRunnerConnected(IsAnyRunnerConnected);
 		}
 
 		public void ReloadPage(bool forceGet) {
