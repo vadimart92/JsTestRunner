@@ -25,7 +25,7 @@ namespace JsTestRunner.Core
 		    var hubConfiguration = new HubConfiguration {
 			    EnableDetailedErrors = true,
 			    EnableJavaScriptProxies = true,
-				EnableJSONP = false
+				EnableJSONP = true
 		    };
 		    appBuilder.MapSignalR(hubConfiguration);
 		    var resourceFileSystem = new PhysicalFileSystem(Path.Combine(GetBasePath(), "Resources"));

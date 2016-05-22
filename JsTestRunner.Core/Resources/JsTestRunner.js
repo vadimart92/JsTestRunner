@@ -207,10 +207,18 @@ Ext.define("JsTestRunner.Client.SignalR", {
 		var me = this;
 		if (this.testRunnerBroker.connection.state === $.signalR.connectionState.disconnected) {
 			this.checkConnectionFlag = false;
+			var oldValue = $.support.cors;
 			var enableConnectionCheck = function (connected) {
+			    $.support.cors = oldValue;
 			    me.checkConnectionFlag = true;
-			    console.clear();
+			    if (connected) {
+			        console.clear();
+			    } else {
+			        console.error("Error during connection init");
+			    }
 			}
+		    
+		    $.support.cors = false;
 			this.testRunnerBroker.connection.start().then(enableConnectionCheck.bind(this, true),
                 enableConnectionCheck.bind(this, false));
 		}
